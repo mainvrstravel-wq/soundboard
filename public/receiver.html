@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Soundboard Receiver</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/sounds.js?v=2"></script>
+  <style>
+    html, body { background: #0b0b14; margin: 0; }
+    body {
+      background:
+        radial-gradient(600px 400px at 15% 0%, rgba(99,102,241,.35), transparent 60%),
+        radial-gradient(500px 400px at 100% 100%, rgba(236,72,153,.25), transparent 60%), #0b0b14;
+    }
+    html.transparent, html.transparent body { background: transparent !important; }
+    .glass { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+    body.ui-hidden #card, body.ui-hidden #toast { display: none !important; }
+    body.ui-hidden #overlay { background: transparent; inset: auto auto 12px 12px; }
+    body.ui-hidden #enable { font-size: 13px; padding: 8px 14px; border-radius: 9999px; }
+    .pulse-dot { animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+    #toast.show { animation: pop 2s ease-out forwards; }
+    @keyframes pop { 0% { opacity: 0; transform: translate(-50%, 20px) scale(.8); } 12% { opacity: 1; transform: translate(-50%, 0) scale(1.05); } 20% { transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -10px) scale(.98); } }
+  </style>
+</head>
+<body class="text-white min-h-screen flex items-center justify-center">
+
+  <!-- Autoplay-unlock overlay -->
+  <div id="overlay" class="fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(5,5,12,.92);backdrop-filter:blur(6px)">
+    <button id="enable" class="rounded-3xl px-8 py-5 text-xl font-bold active:scale-95 transition"
+      style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 18px 40px -12px #6366f1">
+      🔊 Click to Enable Audio Context
+    </button>
+  </div>
+
+  <main id="card" class="glass rounded-3xl p-7 w-[min(92vw,420px)] text-center">
+    <div class="flex items-center justify-center gap-2 mb-1">
+      <span class="text-2xl">🔈</span><h1 class="text-xl font-extrabold tracking-tight">Receiver</h1>
+    </div>
+    <p class="text-slate-400 text-sm">Room <span id="roomLabel" class="text-white font-mono font-bold">—</span></p>
+
+    <canvas id="viz" width="360" height="90" class="w-full h-[90px] my-5"></canvas>
+
+    <div class="flex items-center justify-center gap-2 mb-3">
+      <span id="dot" class="w-2.5 h-2.5 rounded-full bg-red-500 pulse-dot"></span>
+      <span id="status" class="font-semibold text-sm">Disconnected</span>
+      <span id="audioState" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200">audio: locked</span>
+    </div>
+    <div class="flex justify-center gap-4 text-xs text-slate-500">
+      <span id="loadInfo">Loading sounds…</span><span>·</span><span id="volInfo">Volume 100%</span>
+    </div>
+  </main>
+
+  <div id="toast" class="fixed left-1/2 bottom-10 z-40 glass rounded-full px-6 py-3 text-lg font-bold opacity-0" style="background:rgba(30,30,50,.9)"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const clean = (r) => String(r || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
+  const room = clean(params.get('room')) || 'default';
+  if (params.get('ui') === 'hidden') document.body.classList.add('ui-hidden');
+  if (params.get('bg') === 'transparent') document.documentElement.classList.add('transparent');
+  $('roomLabel').textContent = room;
+
+  // ---------- Web Audio (decoding works even while the context is suspended) ----------
+  const ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+  const master = ctx.createGain();
+  const analyser = ctx.createAnalyser(); analyser.fftSize = 128; analyser.smoothingTimeConstant = 0.75;
+  master.connect(analyser); analyser.connect(ctx.destination);
+
+  const meta = {}, buffers = {}, failed = {}, loading = new Set(), active = new Set();
+  let total = 0;
+  const info = () => {
+    const bad = Object.keys(failed).filter((k) => !buffers[k]);
+    $('loadInfo').textContent = `Loaded ${Object.keys(buffers).length}/${total} sounds` + (bad.length ? ` (failed: ${bad.join(', ')})` : '');
+  };
+
+  async function load(s) {
+    meta[s.id] = s;
+    if (buffers[s.id] || loading.has(s.id)) return;
+    loading.add(s.id);
+    try {
+      const url = s.url || s.file;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status);
+      const ab = await res.arrayBuffer();
+      buffers[s.id] = await new Promise((resolve, reject) => ctx.decodeAudioData(ab, resolve, reject));
+    } catch (e) { console.warn('Failed to load', s.url || s.file, e); failed[s.id] = String(e && e.message || e); }
+    loading.delete(s.id); info();
+  }
+  function syncSounds(custom) {
+    const all = [...SOUNDS, ...(custom || [])];
+    total = all.length;
+    const ids = new Set(all.map((s) => s.id));
+    Object.keys(buffers).forEach((id) => { if (!ids.has(id)) { delete buffers[id]; delete meta[id]; } });
+    all.forEach(load); info();
+  }
+  syncSounds([]); // built-ins start loading immediately
+
+  // ---------- audio unlock ----------
+  function audioUi() {
+    const ok = ctx.state === 'running';
+    $('audioState').textContent = ok ? 'audio: ready' : 'audio: locked';
+    $('audioState').className = 'text-xs px-2 py-0.5 rounded-full ' + (ok ? 'bg-emerald-500/20 text-emerald-200' : 'bg-amber-500/20 text-amber-200');
+    $('overlay').classList.toggle('hidden', ok);
+  }
+  ctx.addEventListener('statechange', audioUi);
+  ctx.resume().then(audioUi).catch(() => {}); // usually works automatically in OBS / TikTok Live Studio
+  audioUi();
+  $('enable').onclick = async () => { await ctx.resume(); audioUi(); };
+  document.addEventListener('pointerdown', () => { if (ctx.state !== 'running') ctx.resume(); });
+
+  // ---------- playback ----------
+  let toastT;
+  function toast(text) {
+    const t = $('toast'); t.textContent = text; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  }
+  let currentSource = null;
+  function stopAll() {
+    if (currentSource) {
+      try { currentSource.stop(0); currentSource.disconnect(); } catch (_) {}
+      currentSource = null;
+    }
+    active.forEach((s) => { try { s.stop(0); s.disconnect(); } catch (_) {} });
+    active.clear();
+    toast('⏹  Stopped');
+  }
+
+  function play(id) {
+    const buf = buffers[id]; if (!buf) return;
+    if (ctx.state !== 'running') ctx.resume();
+    stopAll();
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(master);
+    currentSource = src;
+    active.add(src);
+    src.onended = () => {
+      if (currentSource === src) currentSource = null;
+      active.delete(src);
+    };
+    src.start(0);
+    const m = meta[id]; if (m) toast(`${m.emoji}  ${m.label}`);
+  }
+
+  async function loadSoundsFromApi() {
+    try {
+      const res = await fetch('/api/sounds?t=' + Date.now());
+      if (res.ok) {
+        const list = await res.json();
+        if (Array.isArray(list) && list.length > 0) {
+          window.SOUNDS = list;
+          syncSounds([]);
+        }
+      }
+    } catch (_) {}
+  }
+  loadSoundsFromApi();
+  function setVolume(v) {
+    master.gain.setTargetAtTime(v / 100, ctx.currentTime, 0.01);
+    $('volInfo').textContent = `Volume ${Math.round(v)}%`;
+  }
+
+  // ---------- visualizer ----------
+  const cv = $('viz'), g = cv.getContext('2d'), data = new Uint8Array(analyser.frequencyBinCount);
+  const BARS = 32, grad = g.createLinearGradient(0, 0, cv.width, 0);
+  grad.addColorStop(0, '#6366f1'); grad.addColorStop(.5, '#a855f7'); grad.addColorStop(1, '#ec4899');
+  function draw() {
+    requestAnimationFrame(draw);
+    if (document.body.classList.contains('ui-hidden')) return;
+    analyser.getByteFrequencyData(data);
+    g.clearRect(0, 0, cv.width, cv.height);
+    const bw = cv.width / BARS;
+    g.fillStyle = grad;
+    for (let i = 0; i < BARS; i++) {
+      const v = data[Math.floor(i * (data.length * 0.75) / BARS)] / 255;
+      const h = Math.max(4, v * cv.height);
+      const x = i * bw + 2, y = (cv.height - h) / 2, w = bw - 4;
+      g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, 3) : g.rect(x, y, w, h); g.fill();
+    }
+  }
+  draw();
+
+  // ---------- socket ----------
+  const socket = io();
+  function join() {
+    socket.emit('join-room', { room, role: 'receiver' }, (res) => {
+      if (res && res.ok) { setVolume(res.volume); syncSounds(res.sounds); }
+    });
+  }
+  socket.on('connect', () => {
+    $('dot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400'; $('status').textContent = 'Connected'; join();
+  });
+  socket.on('disconnect', () => {
+    $('dot').className = 'w-2.5 h-2.5 rounded-full bg-red-500 pulse-dot'; $('status').textContent = 'Disconnected';
+  });
+  socket.on('play-sound', ({ id }) => play(id));
+  socket.on('stop-all', stopAll);
+  socket.on('set-volume', ({ value }) => setVolume(value));
+  socket.on('sounds-updated', ({ sounds }) => syncSounds(sounds));
+})();
+</script>
+</body>
+</html>
