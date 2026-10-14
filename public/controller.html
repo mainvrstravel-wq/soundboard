@@ -24,27 +24,27 @@
     }
     .glass { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
     .snd {
-      position: relative; overflow: hidden; border-radius: 22px; aspect-ratio: 1 / .92; width: 100%;
+      position: relative; overflow: hidden; border-radius: 16px; aspect-ratio: 1 / 1; width: 100%;
       background: linear-gradient(135deg, var(--c1), var(--c2));
-      box-shadow: 0 10px 24px -10px var(--c1), inset 0 1px 0 rgba(255,255,255,.35);
-      transition: transform .12s ease, filter .12s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+      box-shadow: 0 6px 16px -6px var(--c1), inset 0 1px 0 rgba(255,255,255,.35);
+      transition: transform .12s ease, filter .12s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
     }
     .snd::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,.22), transparent 45%); pointer-events: none; }
-    .snd:active { transform: scale(.94); filter: brightness(1.15); }
+    .snd:active { transform: scale(.91); filter: brightness(1.18); }
     .snd.flash { animation: flash .45s ease-out; }
-    @keyframes flash { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,.7), 0 10px 24px -10px var(--c1); } 100% { box-shadow: 0 0 0 22px rgba(255,255,255,0), 0 10px 24px -10px var(--c1); } }
-    .snd .emo { font-size: 42px; line-height: 1; filter: drop-shadow(0 4px 6px rgba(0,0,0,.3)); transition: transform .15s; z-index: 1; }
-    .snd:active .emo { transform: scale(1.18) rotate(-6deg); }
-    .snd .lbl { font-weight: 700; font-size: 14px; letter-spacing: .2px; text-shadow: 0 1px 2px rgba(0,0,0,.35); z-index: 1; padding: 0 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @keyframes flash { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,.7), 0 6px 16px -6px var(--c1); } 100% { box-shadow: 0 0 0 18px rgba(255,255,255,0), 0 6px 16px -6px var(--c1); } }
+    .snd .emo { font-size: 26px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,.3)); transition: transform .15s; z-index: 1; }
+    .snd:active .emo { transform: scale(1.2) rotate(-6deg); }
+    .snd .lbl { font-weight: 700; font-size: 11px; letter-spacing: .1px; text-shadow: 0 1px 2px rgba(0,0,0,.4); z-index: 1; padding: 0 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ripple { position: absolute; border-radius: 9999px; background: rgba(255,255,255,.55); transform: scale(0); animation: rip .6s ease-out forwards; pointer-events: none; z-index: 2; }
     @keyframes rip { to { transform: scale(1); opacity: 0; } }
-    .key { position: absolute; top: 8px; left: 10px; font-size: 11px; font-weight: 700; background: rgba(0,0,0,.28); border-radius: 8px; padding: 1px 7px; z-index: 1; display: none; }
+    .key { position: absolute; top: 4px; left: 5px; font-size: 9px; font-weight: 700; background: rgba(0,0,0,.28); border-radius: 5px; padding: 1px 4px; z-index: 1; display: none; }
     @media (hover: hover) and (pointer: fine) { .key { display: block; } }
-    .del { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 9999px; background: #ef4444; color: #fff; font-weight: 800; z-index: 3; display: none; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,.4); }
+    .del { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 9999px; background: #ef4444; color: #fff; font-weight: 800; font-size: 10px; z-index: 3; display: none; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
     .edit .del { display: flex; }
     .edit .snd.custom { animation: wiggle .5s ease-in-out infinite alternate; }
     @keyframes wiggle { from { transform: rotate(-1.2deg); } to { transform: rotate(1.2deg); } }
-    .add { border: 2px dashed rgba(255,255,255,.25); background: rgba(255,255,255,.04); border-radius: 22px; aspect-ratio: 1 / .92; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: rgba(255,255,255,.65); font-weight: 600; transition: all .15s; }
+    .add { border: 2px dashed rgba(255,255,255,.25); background: rgba(255,255,255,.04); border-radius: 16px; aspect-ratio: 1 / 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: rgba(255,255,255,.55); font-weight: 600; font-size: 10px; transition: all .15s; }
     .add:active { transform: scale(.95); background: rgba(255,255,255,.1); }
     .dock { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
     input[type=range] { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 9999px; background: linear-gradient(90deg, #818cf8 var(--p,100%), rgba(255,255,255,.15) var(--p,100%)); outline: none; width: 100%; }
@@ -57,6 +57,20 @@
     .modal-bg { background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
     .sheet { animation: up .25s ease-out; }
     @keyframes up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+    /* ===== Category Tabs ===== */
+    #catTabs { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; -ms-overflow-style: none; }
+    #catTabs::-webkit-scrollbar { display: none; }
+    .cat-tab { flex-shrink: 0; padding: 5px 13px; border-radius: 9999px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); color: rgba(255,255,255,.6); transition: all .15s; white-space: nowrap; }
+    .cat-tab.active { background: rgba(99,102,241,.45); border-color: rgba(99,102,241,.7); color: #fff; }
+    .cat-tab:active { transform: scale(.95); }
+    /* ===== Carousel ===== */
+    #carouselWrap { position: relative; touch-action: pan-y; overflow: hidden; }
+    #carouselTrack { display: flex; transition: transform .28s cubic-bezier(.4,0,.2,1); will-change: transform; }
+    .c-page { flex-shrink: 0; width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    /* Pagination dots */
+    #pageDots { display: flex; justify-content: center; gap: 5px; margin-top: 8px; min-height: 14px; }
+    .dot { width: 6px; height: 6px; border-radius: 9999px; background: rgba(255,255,255,.22); transition: all .2s; }
+    .dot.active { background: #818cf8; width: 16px; }
   </style>
 </head>
 <body class="text-white min-h-screen">
@@ -84,34 +98,39 @@
 </main>
 
 <!-- ============ MAIN VIEW ============ -->
-<div id="mainView" class="hidden max-w-2xl mx-auto px-4 pt-4" style="padding-bottom: 190px">
-  <header class="flex items-center justify-between gap-2 mb-4">
-    <button id="roomChip" class="glass rounded-2xl px-3.5 py-2 flex items-center gap-2 active:scale-95 transition min-w-0">
-      <span class="text-lg">🎛️</span>
+<div id="mainView" class="hidden max-w-lg mx-auto px-4 pt-4" style="padding-bottom: 185px">
+  <header class="flex items-center justify-between gap-2 mb-3">
+    <button id="roomChip" class="glass rounded-2xl px-3 py-2 flex items-center gap-2 active:scale-95 transition min-w-0">
+      <span class="text-base">🎛️</span>
       <span class="text-left min-w-0">
         <span class="block text-[10px] uppercase tracking-wider text-slate-400 leading-none">Room</span>
-        <span id="roomName" class="block font-bold truncate max-w-[140px] leading-tight">—</span>
+        <span id="roomName" class="block font-bold truncate max-w-[110px] leading-tight text-sm">—</span>
       </span>
-      <span class="text-slate-400 text-sm ml-1">🔗</span>
+      <span class="text-slate-400 text-xs ml-1">🔗</span>
     </button>
-    <div class="flex items-center gap-2">
-      <button id="localSndBtn" class="glass rounded-full px-3 py-2 flex items-center gap-1.5 text-xs font-semibold active:scale-95 transition" title="สลับเปิด/ปิดเสียงในเครื่องนี้">
+    <div class="flex items-center gap-1.5">
+      <button id="localSndBtn" class="glass rounded-full px-2.5 py-2 flex items-center gap-1 text-xs font-semibold active:scale-95 transition" title="สลับเปิด/ปิดเสียงในเครื่องนี้">
         <span id="localSndIcon">🔊</span>
-        <span id="localSndText" class="hidden sm:inline">เสียงในเครื่อง</span>
       </button>
-      <div id="pill" class="glass rounded-full pl-3 pr-3.5 py-2 flex items-center gap-2 text-sm font-semibold">
-        <span id="dot" class="w-2.5 h-2.5 rounded-full bg-red-500 pulse-dot"></span>
+      <div id="pill" class="glass rounded-full pl-2.5 pr-3 py-2 flex items-center gap-1.5 text-xs font-semibold">
+        <span id="dot" class="w-2 h-2 rounded-full bg-red-500 pulse-dot"></span>
         <span id="status">Disconnected</span>
       </div>
-      <button id="refreshBtn" class="glass rounded-full w-10 h-10 flex items-center justify-center active:scale-90 transition" title="โหลดไฟล์เสียงใหม่จากโฟลเดอร์">🔄</button>
-      <button id="editBtn" class="glass rounded-full w-10 h-10 flex items-center justify-center active:scale-90 transition" title="แก้ไข">✏️</button>
+      <button id="refreshBtn" class="glass rounded-full w-9 h-9 flex items-center justify-center active:scale-90 transition text-sm" title="โหลดเสียงใหม่">🔄</button>
+      <button id="editBtn" class="glass rounded-full w-9 h-9 flex items-center justify-center active:scale-90 transition text-sm" title="แก้ไข">✏️</button>
     </div>
   </header>
 
-  <p id="rxWarn" class="hidden mb-3 text-sm rounded-2xl px-4 py-2.5 bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/30"></p>
+  <p id="rxWarn" class="hidden mb-2 text-xs rounded-2xl px-3 py-2 bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/30"></p>
 
-  <section id="grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></section>
-  <p class="text-center text-xs text-slate-500 mt-6 hidden sm:block">แป้นพิมพ์: <b>1–9, 0</b> = เล่นเสียง · <b>Space</b> = หยุดทั้งหมด</p>
+  <!-- Category tabs -->
+  <div id="catTabs" class="mb-2"></div>
+
+  <!-- Carousel -->
+  <div id="carouselWrap">
+    <div id="carouselTrack"></div>
+  </div>
+  <div id="pageDots"></div>
 </div>
 
 <!-- ============ DOCK ============ -->
@@ -396,30 +415,157 @@
     }
   }
 
-  function renderGrid() {
-    const g = $('grid'); g.innerHTML = '';
-    g.classList.toggle('edit', editMode);
-    allSounds().forEach((s, i) => {
-      const b = document.createElement('button');
-      b.className = 'snd' + (s.custom ? ' custom' : '');
-      b.dataset.idx = i;
-      b.style.setProperty('--c1', GRADS[i % GRADS.length][0]); b.style.setProperty('--c2', GRADS[i % GRADS.length][1]);
-      const emo = document.createElement('span'); emo.className = 'emo'; emo.textContent = s.emoji;
-      const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = s.label;
-      b.append(emo, lbl);
-      if (i < 10) { const k = document.createElement('span'); k.className = 'key'; k.textContent = (i + 1) % 10; b.appendChild(k); }
-      if (s.custom) {
-        const d = document.createElement('span'); d.className = 'del'; d.textContent = '✕';
-        d.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); removeSound(s); });
-        b.appendChild(d);
-      }
-      b.addEventListener('pointerdown', (e) => { if (!editMode) play(s, b, e); });
-      g.appendChild(b);
-    });
-    const a = document.createElement('button'); a.className = 'add';
-    a.innerHTML = '<span style="font-size:34px;line-height:1">＋</span><span style="font-size:13px">เพิ่มเสียง</span>';
-    a.onclick = openAdd; g.appendChild(a);
+  // ---------- carousel state ----------
+  const PER_PAGE = 9;
+  let activeCat = null;  // null = all
+  let curPage = 0;
+
+  function getCategories() {
+    const cats = new Set();
+    allSounds().forEach(s => { if (s.category) cats.add(s.category); });
+    return [...cats];
   }
+
+  function getSoundsForCat(cat) {
+    const all = allSounds();
+    if (!cat) return all;
+    return all.filter(s => s.category === cat);
+  }
+
+  function renderCarousel() {
+    // Build category tabs
+    const tabEl = $('catTabs');
+    tabEl.innerHTML = '';
+    const cats = getCategories();
+    const hasCats = cats.length > 1;
+    if (hasCats) {
+      const addTab = (label, val) => {
+        const t = document.createElement('button');
+        t.className = 'cat-tab' + (activeCat === val ? ' active' : '');
+        t.textContent = label;
+        t.onclick = () => { activeCat = val; curPage = 0; renderCarousel(); };
+        tabEl.appendChild(t);
+      };
+      addTab('ทั้งหมด', null);
+      cats.forEach(c => addTab(c, c));
+      tabEl.style.display = '';
+    } else {
+      tabEl.style.display = 'none';
+    }
+
+    // Build pages
+    const sounds = getSoundsForCat(activeCat);
+    const allS = allSounds();
+    const track = $('carouselTrack');
+    const dotsEl = $('pageDots');
+    track.innerHTML = '';
+    dotsEl.innerHTML = '';
+
+    // chunk into pages of 9; last page gets + button
+    const pages = [];
+    for (let i = 0; i < sounds.length; i += PER_PAGE) pages.push(sounds.slice(i, i + PER_PAGE));
+    if (pages.length === 0) pages.push([]);
+
+    pages.forEach((pageSounds, pi) => {
+      const page = document.createElement('div');
+      page.className = 'c-page' + (editMode ? ' edit' : '');
+
+      const slots = [...pageSounds];
+      // add "+" slot on last page
+      const isLastPage = pi === pages.length - 1;
+
+      slots.forEach(s => {
+        const globalIdx = allS.indexOf(s);
+        const b = document.createElement('button');
+        b.className = 'snd' + (s.custom ? ' custom' : '');
+        b.dataset.sid = s.id;
+        const grad = GRADS[globalIdx >= 0 ? globalIdx % GRADS.length : 0];
+        b.style.setProperty('--c1', grad[0]);
+        b.style.setProperty('--c2', grad[1]);
+        const emo = document.createElement('span'); emo.className = 'emo'; emo.textContent = s.emoji;
+        const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = s.label;
+        b.append(emo, lbl);
+        if (globalIdx >= 0 && globalIdx < 9) {
+          const k = document.createElement('span'); k.className = 'key'; k.textContent = globalIdx + 1; b.appendChild(k);
+        }
+        if (s.custom) {
+          const d = document.createElement('span'); d.className = 'del'; d.textContent = '✕';
+          d.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); removeSound(s); });
+          b.appendChild(d);
+        }
+        b.addEventListener('pointerdown', (e) => { if (!editMode) play(s, b, e); });
+        page.appendChild(b);
+      });
+
+      if (isLastPage) {
+        const a = document.createElement('button'); a.className = 'add';
+        a.innerHTML = '<span style="font-size:26px;line-height:1">＋</span><span>เพิ่มเสียง</span>';
+        a.onclick = openAdd;
+        page.appendChild(a);
+      }
+
+      track.appendChild(page);
+    });
+
+    // clamp page index
+    if (curPage >= pages.length) curPage = pages.length - 1;
+    if (curPage < 0) curPage = 0;
+    applyCarouselPos(false);
+
+    // dots
+    if (pages.length > 1) {
+      pages.forEach((_, pi) => {
+        const d = document.createElement('span');
+        d.className = 'dot' + (pi === curPage ? ' active' : '');
+        d.onclick = () => { curPage = pi; applyCarouselPos(true); updateDots(); };
+        dotsEl.appendChild(d);
+      });
+    }
+  }
+
+  function applyCarouselPos(animated) {
+    const track = $('carouselTrack');
+    track.style.transition = animated ? 'transform .28s cubic-bezier(.4,0,.2,1)' : 'none';
+    track.style.transform = `translateX(-${curPage * 100}%)`;
+  }
+
+  function updateDots() {
+    $('pageDots').querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === curPage));
+  }
+
+  function goPage(delta) {
+    const totalPages = $('carouselTrack').children.length;
+    const next = Math.min(Math.max(curPage + delta, 0), totalPages - 1);
+    if (next === curPage) return;
+    curPage = next;
+    applyCarouselPos(true);
+    updateDots();
+  }
+
+  // Touch/swipe support on carousel
+  (() => {
+    let sx = 0, sy = 0, dragging = false;
+    const wrap = () => $('carouselWrap');
+    const onStart = (e) => { const t = e.touches?.[0] ?? e; sx = t.clientX; sy = t.clientY; dragging = true; };
+    const onEnd = (e) => {
+      if (!dragging) return; dragging = false;
+      const t = e.changedTouches?.[0] ?? e;
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) > Math.abs(dy) * 1.2 && Math.abs(dx) > 30) goPage(dx < 0 ? 1 : -1);
+    };
+    document.addEventListener('touchstart', e => { if (wrap().contains(e.target)) onStart(e); }, { passive: true });
+    document.addEventListener('touchend', onEnd, { passive: true });
+  })();
+
+  // Keyboard left/right to change page
+  window.addEventListener('keydown', (e) => {
+    if (!room) return;
+    if (e.code === 'ArrowLeft') { goPage(-1); return; }
+    if (e.code === 'ArrowRight') { goPage(1); return; }
+  });
+
+  // Keep old renderGrid alias used by other code
+  function renderGrid() { renderCarousel(); }
 
   async function removeSound(s) {
     try { await fetch(`/api/sound/${room}/${s.id}`, { method: 'DELETE' }); buzz(20); } catch (_) { toast('ลบไม่สำเร็จ'); }
@@ -474,8 +620,10 @@
     if (!room || e.repeat || /INPUT|TEXTAREA/.test(document.activeElement.tagName) || e.metaKey || e.ctrlKey) return;
     if (e.code === 'Space') { e.preventDefault(); stopAllLocal(); socket.emit('stop-all'); return; }
     if (/^\d$/.test(e.key)) {
-      const idx = e.key === '0' ? 9 : Number(e.key) - 1; const s = allSounds()[idx];
-      if (s) play(s, document.querySelector(`.snd[data-idx="${idx}"]`));
+      const idx = e.key === '0' ? 8 : Number(e.key) - 1;
+      const pageSounds = getSoundsForCat(activeCat).slice(curPage * PER_PAGE, (curPage + 1) * PER_PAGE);
+      const s = pageSounds[idx];
+      if (s) play(s, $('carouselTrack').querySelector(`.snd[data-sid="${s.id}"]`));
     }
   });
 

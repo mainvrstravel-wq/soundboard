@@ -61,19 +61,43 @@ function formatLabel(name) {
 function getFolderSounds() {
   const soundsDir = path.join(__dirname, 'public', 'sounds');
   if (!fs.existsSync(soundsDir)) return [];
-  const files = fs.readdirSync(soundsDir);
   const audioExts = /\.(mp3|wav|ogg|m4a|aac|webm|flac)$/i;
-  const audioFiles = files.filter((f) => audioExts.test(f));
-  return audioFiles.map((f, i) => {
-    const id = f.replace(/\.[^.]+$/, '');
-    return {
-      id: id,
-      label: formatLabel(id),
-      emoji: getEmojiForName(id, i),
-      url: `/sounds/${encodeURIComponent(f)}`,
-      file: `/sounds/${encodeURIComponent(f)}`,
-    };
-  });
+  const items = fs.readdirSync(soundsDir, { withFileTypes: true });
+  const sounds = [];
+  let globalIdx = 0;
+
+  for (const item of items) {
+    if (item.isDirectory()) {
+      const catName = item.name;
+      const catDir = path.join(soundsDir, catName);
+      try {
+        const subFiles = fs.readdirSync(catDir).filter(f => audioExts.test(f));
+        for (const f of subFiles) {
+          const id = (catName + '_' + f.replace(/\.[^.]+$/, '')).slice(0, 80);
+          sounds.push({
+            id: id,
+            category: formatLabel(catName),
+            label: formatLabel(f.replace(/\.[^.]+$/, '')),
+            emoji: getEmojiForName(f, globalIdx++),
+            url: `/sounds/${encodeURIComponent(catName)}/${encodeURIComponent(f)}`,
+            file: `/sounds/${encodeURIComponent(catName)}/${encodeURIComponent(f)}`,
+          });
+        }
+      } catch (_) {}
+    } else if (item.isFile() && audioExts.test(item.name)) {
+      const f = item.name;
+      const id = f.replace(/\.[^.]+$/, '').slice(0, 80);
+      sounds.push({
+        id: id,
+        category: 'ทั่วไป',
+        label: formatLabel(id),
+        emoji: getEmojiForName(id, globalIdx++),
+        url: `/sounds/${encodeURIComponent(f)}`,
+        file: `/sounds/${encodeURIComponent(f)}`,
+      });
+    }
+  }
+  return sounds;
 }
 
 // ---------- HTTP ----------
