@@ -58,7 +58,10 @@ function formatLabel(name) {
     .slice(0, 30);
 }
 
-function getFolderSounds() {
+let catalogCache = null, catalogScannedAt = 0;
+function getFolderSounds(refresh = false) {
+  const age = Date.now() - catalogScannedAt;
+  if (catalogCache && age < (refresh ? 1000 : 5000)) return catalogCache;
   const soundsDir = path.join(__dirname, 'public', 'sounds');
   if (!fs.existsSync(soundsDir)) return [];
   const audioExts = /\.(mp3|wav|ogg|m4a|aac|webm|flac)$/i;
@@ -97,7 +100,9 @@ function getFolderSounds() {
       });
     }
   }
-  return sounds;
+  catalogCache = sounds;
+  catalogScannedAt = Date.now();
+  return catalogCache;
 }
 
 // ---------- HTTP ----------
@@ -110,13 +115,15 @@ app.get('/js/sounds.js', (req, res) => {
 });
 
 app.get('/api/sounds', (req, res) => {
-  res.json(getFolderSounds());
+  res.setHeader('Cache-Control', 'no-cache');
+  res.json(getFolderSounds(req.query.refresh === '1'));
 });
 
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, file) => {
-    if (/\.(html|js)$/.test(file)) res.setHeader('Cache-Control', 'no-cache');
+    if (/\.(html|js|webmanifest)$/.test(file)) res.setHeader('Cache-Control', 'no-cache');
     else res.setHeader('Cache-Control', 'public, max-age=3600');
+    if (file.endsWith('.webmanifest')) res.setHeader('Content-Type', 'application/manifest+json');
   },
 }));
 app.get('/', (req, res) => res.redirect('/controller'));

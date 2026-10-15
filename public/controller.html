@@ -10,9 +10,16 @@
   </script>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Soundboard" />
+  <link rel="manifest" href="/app.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/app-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+  <script src="/js/pwa.js?v=1" defer></script>
   <title>Soundboard Controller</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/load-queue.js?v=1"></script>
+  <script src="/js/board-mapping.js?v=2"></script>
   <script src="/js/sounds.js?v=2"></script>
   <style>
     :root { color-scheme: dark; }
@@ -76,7 +83,7 @@
     .dot { width: 6px; height: 6px; border-radius: 9999px; background: rgba(255,255,255,.22); transition: all .2s; }
     .dot.active { background: #818cf8; width: 16px; }
   </style>
-  <link rel="stylesheet" href="/mobile.css?v=8" />
+  <link rel="stylesheet" href="/mobile.css?v=10" />
 </head>
 <body class="text-white min-h-screen">
 
@@ -137,6 +144,21 @@
 
 
   <button id="showResultsBtn" class="menu-primary">ดูเสียงทั้งหมด</button>
+  <section id="installSection" class="menu-section" aria-labelledby="installTitle">
+    <div class="install-heading"><img src="/icons/app-192.png" width="44" height="44" alt=""><h2 id="installTitle">ติดตั้ง Soundboard</h2></div>
+    <p id="installHint" class="install-hint" role="status">เปิดเมนูเบราว์เซอร์ แล้วเลือก “ติดตั้งแอป” หรือ “เพิ่มลงในหน้าจอหลัก”</p>
+    <button id="installAppBtn" class="install-button" hidden>ติดตั้งแอป</button>
+    <details id="installInstructions"><summary>วิธีติดตั้งบน Android</summary><ol><li>เปิดเว็บนี้ด้วย Chrome</li><li>แตะเมนู ⋮ ของเบราว์เซอร์</li><li>เลือก “ติดตั้งแอป” หรือ “เพิ่มลงในหน้าจอหลัก” แล้วยืนยัน</li></ol></details>
+  </section>
+  <section id="mappingSection" class="menu-section" aria-labelledby="mappingTitle">
+    <h2 id="mappingTitle" tabindex="-1">ตั้งคีย์ลัด</h2>
+    <p class="mapping-help">เลือกเสียงที่ใช้บ่อยได้สูงสุด 9 เสียง แล้วแตะปุ่มด้านล่างเพื่อตั้งคีย์ลัด</p>
+    <p class="mapping-help">เมื่อบันทึก คีย์ที่ตั้งไว้จะเล่นเสียงเดิมได้ทุกหมวดในหน้าเสียง แทนคีย์ 1–9 เดิม ส่วน Space ใช้หยุดเสียงเสมอ</p>
+    <div id="mappingRows"></div>
+    <p id="mappingMessage" class="mapping-message" role="status"></p>
+    <div class="mapping-actions"><button id="resetMappingBtn" class="mapping-reset">คืนค่าเริ่มต้น</button><button id="saveMappingBtn" class="mapping-save">บันทึกคีย์ลัด</button></div>
+    <p class="mapping-note">บันทึกบนเบราว์เซอร์นี้ แยกตามห้อง · ใช้คีย์ A–Z, 0–9 และ Numpad</p>
+  </section>
   <section class="menu-section" aria-labelledby="appearanceTitle">
     <h2 id="appearanceTitle">การแสดงผล</h2>
     <button id="themeToggle" class="theme-control" role="switch" aria-checked="false" aria-labelledby="themeTitle" aria-describedby="themeDescription">
@@ -252,8 +274,9 @@
   // ---------- local audio player ----------
   let localAudioEnabled = localStorage.getItem('sb_local_audio') !== 'false';
   let localCtx = null, localMaster = null;
-  const localBuffers = {}, localLoading = new Set(), localActive = new Set();
+  const localBuffers = {}, localLoading = new Map(), localActive = new Set();
   const durationErrors = new Set();
+  const queueLocalAudio = createLoadQueue(2);
   function durationLabel(id) {
     const seconds = localBuffers[id]?.duration;
     if (!Number.isFinite(seconds) || seconds <= 0) return durationErrors.has(id) ? '— วิ' : '… วิ';
@@ -284,28 +307,31 @@
     }
   }
 
-  async function loadLocalSound(s) {
-    if (!s || !s.id || localBuffers[s.id] || localLoading.has(s.id)) return;
-    localLoading.add(s.id);
-    durationErrors.delete(s.id);
-    try {
-      initAudio(false);
-      const url = s.url || s.file;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const ab = await res.arrayBuffer();
-      if (localCtx) {
-        localBuffers[s.id] = await new Promise((resolve, reject) => {
-          localCtx.decodeAudioData(ab, resolve, reject);
-        });
+  function loadLocalSound(s, priority = false) {
+    if (!s || !s.id || localBuffers[s.id]) return Promise.resolve();
+    if (localLoading.has(s.id)) { if (priority) queueLocalAudio.prioritize(s.id); return localLoading.get(s.id); }
+    const task = queueLocalAudio(async () => {
+      durationErrors.delete(s.id);
+      try {
+        if (!allSounds().some(sound => sound.id === s.id)) return;
+        initAudio(false);
+        const response = await fetch(s.url || s.file);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.arrayBuffer();
+        if (localCtx) {
+          const buffer = await localCtx.decodeAudioData(data);
+          if (allSounds().some(sound => sound.id === s.id)) localBuffers[s.id] = buffer;
+        }
+      } catch (error) {
+        durationErrors.add(s.id);
+        console.warn('Local audio load error:', s.id, error);
+      } finally {
+        localLoading.delete(s.id);
+        updateDurationLabels(s.id);
       }
-    } catch (err) {
-      durationErrors.add(s.id);
-      console.warn('Local audio load error:', s.id, err);
-    } finally {
-      localLoading.delete(s.id);
-      updateDurationLabels(s.id);
-    }
+    }, s.id);
+    localLoading.set(s.id, task);
+    return task;
   }
 
   function syncLocalSounds() {
@@ -313,12 +339,13 @@
     const all = allSounds();
     const ids = new Set(all.map((s) => s.id));
     Object.keys(localBuffers).forEach((id) => { if (!ids.has(id)) delete localBuffers[id]; });
-    all.forEach(loadLocalSound);
+    all.forEach(sound => loadLocalSound(sound));
   }
 
-  let currentSource = null;
+  let currentSource = null, localPlayVersion = 0;
 
   function stopAllLocal() {
+    localPlayVersion++;
     if (currentSource) {
       try { currentSource.stop(0); currentSource.disconnect(); } catch (_) {}
       currentSource = null;
@@ -337,12 +364,13 @@
     // ตัดเสียงเดิมทันทีเสมอ
     stopAllLocal();
 
+    const version = localPlayVersion;
     const buf = localBuffers[id];
     if (!buf) {
       const s = allSounds().find((x) => x.id === id);
       if (s) {
-        loadLocalSound(s).then(() => {
-          if (localBuffers[id] && localAudioEnabled) playLocal(id);
+        loadLocalSound(s, true).then(() => {
+          if (version === localPlayVersion && localBuffers[id] && localAudioEnabled) playLocal(id);
         });
       }
       return;
@@ -365,7 +393,7 @@
 
   async function loadSoundsFromApi() {
     try {
-      const res = await fetch('/api/sounds?t=' + Date.now());
+      const res = await fetch('/api/sounds?refresh=1', { cache: 'no-cache' });
       if (res.ok) {
         const list = await res.json();
         if (Array.isArray(list) && list.length > 0) {
@@ -399,6 +427,7 @@
     socket.emit('join-room', { room: r, role: 'controller' }, (res) => {
       if (!res || !res.ok) return showJoinErr((res && res.error) || 'เข้าห้องไม่สำเร็จ');
       room = res.room; custom = res.sounds || [];
+      boardMapping.loadRoom(room);
       localStorage.setItem('sb_room', room);
       history.replaceState(null, '', '/controller?room=' + encodeURIComponent(room) + location.hash);
       $('roomName').textContent = room;
@@ -407,7 +436,7 @@
       const base = location.origin + '/receiver?room=' + encodeURIComponent(room);
       $('lnk1').value = base; $('lnk2').value = base + '&ui=hidden&bg=transparent';
       const openBtn = $('openLnk1'); if (openBtn) openBtn.href = base;
-      renderGrid(); requestWake(); syncLocalSounds(); loadSoundsFromApi(); showPage(false);
+      renderGrid(); requestWake(); syncLocalSounds(); showPage(false);
     });
   }
   function showJoinErr(m) { const e = $('joinErr'); e.textContent = m; e.classList.remove('hidden'); }
@@ -423,6 +452,7 @@
 
   // ---------- grid ----------
   const allSounds = () => [...SOUNDS, ...custom.map((c) => ({ ...c, custom: true }))];
+  const boardMapping = createBoardMapping({ getSounds: allSounds, onSave: () => { renderGrid(); location.hash = 'sounds'; } });
   const PAD_COLORS = ['blue', 'lilac', 'pink', 'peach', 'yellow', 'orange', 'yellow', 'pink', 'mint'];
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
   let visualTimer = null, visualSoundId = null;
@@ -497,14 +527,14 @@
     const tabScroll = tabEl.scrollLeft;
     tabEl.innerHTML = '';
     const cats = getCategories();
-    const hasCats = cats.length > 1;
+    const hasCats = true;
     if (hasCats) {
       const addTab = (label, val) => {
         const t = document.createElement('button');
         t.className = 'cat-tab' + (activeCat === val ? ' active' : '');
         t.textContent = label;
         t.setAttribute('aria-pressed', String(activeCat === val));
-        t.onclick = () => { activeCat = val; curPage = 0; renderCarousel(); };
+        t.onclick = () => { activeCat = val; curPage = 0; renderGrid(); };
         tabEl.appendChild(t);
       };
       addTab('ทั้งหมด', null);
@@ -552,6 +582,8 @@
         const duration = document.createElement('span'); duration.className = 'sound-duration'; duration.textContent = durationLabel(s.id);
         const copy = document.createElement('span'); copy.className = 'pad-copy'; copy.append(lbl, duration);
         b.append(emo, copy);
+        const shortcut = boardMapping.getShortcut(s);
+        if (shortcut) { const badge = document.createElement('span'); badge.className = 'pad-shortcut'; badge.textContent = boardMapping.keyName(shortcut); badge.setAttribute('aria-hidden', 'true'); b.appendChild(badge); }
         b.setAttribute('aria-label', 'เล่นเสียง ' + s.label + ' · ' + durationLabel(s.id).replace(' วิ', ' วินาที'));
         const number = document.createElement('span'); number.className = 'pad-number'; number.textContent = String(pageSounds.indexOf(s) + 1).padStart(2, '0'); number.setAttribute('aria-hidden', 'true');
         const meter = document.createElement('span'); meter.className = 'pad-meter'; meter.setAttribute('aria-hidden', 'true'); meter.innerHTML = '<i></i><i></i><i></i>';
@@ -566,7 +598,7 @@
           d.addEventListener('click', () => removeSound(s));
           slot.appendChild(d);
         }
-        b.addEventListener('click', (e) => { if (!editMode && Date.now() - lastSwipe > 350) play(s, b, e); });
+        b.addEventListener('click', (e) => { if (editMode || Date.now() - lastSwipe <= 350) return; play(s, b, e); });
         page.appendChild(slot);
       });
 
@@ -634,13 +666,13 @@
 
   // Keyboard left/right to change page
   window.addEventListener('keydown', (e) => {
-    if (!room || document.body.classList.contains('menu-page') || /INPUT|TEXTAREA/.test(document.activeElement.tagName) || modals.some(m => !$(m).classList.contains('hidden'))) return;
+    if (!room || document.body.classList.contains('menu-page') || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || modals.some(m => !$(m).classList.contains('hidden'))) return;
     if (e.code === 'ArrowLeft') { goPage(-1); return; }
     if (e.code === 'ArrowRight') { goPage(1); return; }
   });
 
   // Keep old renderGrid alias used by other code
-  function renderGrid() { renderCarousel(); renderCustomList(); }
+  function renderGrid() { renderCarousel(); renderCustomList(); boardMapping.render(); }
   function renderCustomList() {
     const list = $('customSoundList'); list.replaceChildren();
     if (!custom.length) {
@@ -667,6 +699,7 @@
     updateLocalSndBtn();
     updateRx();
     if (localAudioEnabled) initAudio(true);
+    else stopAllLocal();
     toast(localAudioEnabled ? '🔊 เปิดเสียงในเครื่องนี้แล้ว' : '🔇 ปิดเสียงในเครื่องนี้แล้ว (ส่งเฉพาะ Receiver)');
   };
   $('refreshBtn').onclick = async () => {
@@ -706,8 +739,13 @@
 
   // hotkeys (desktop)
   window.addEventListener('keydown', (e) => {
-    if (!room || document.body.classList.contains('menu-page') || editMode || modals.some(m => !$(m).classList.contains('hidden')) || e.repeat || /INPUT|TEXTAREA/.test(document.activeElement.tagName) || e.metaKey || e.ctrlKey) return;
+    if (!room || document.body.classList.contains('menu-page') || editMode || modals.some(m => !$(m).classList.contains('hidden')) || e.repeat || e.isComposing || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) || document.activeElement.isContentEditable || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
     if (e.code === 'Space') { e.preventDefault(); stopAllLocal(); stopVisual(); socket.emit('stop-all'); return; }
+    if (boardMapping.saved) {
+      const sound = boardMapping.findSoundByCode(e.code);
+      if (sound) { e.preventDefault(); const button = [...$('carouselTrack').querySelectorAll('.snd')].find(button => button.dataset.sid === sound.id); play(sound, button); }
+      return;
+    }
     if (/^\d$/.test(e.key)) {
       const idx = e.key === '0' ? 8 : Number(e.key) - 1;
       const pageSounds = getSoundsForCat(activeCat).slice(curPage * PER_PAGE, (curPage + 1) * PER_PAGE);
@@ -793,6 +831,7 @@
   function showPage(focus = true) {
     if (!room) return;
     const menu = location.hash === '#menu';
+    if (!menu) boardMapping.cancelCapture();
     document.body.classList.add('compact-ui');
     document.body.classList.toggle('menu-page', menu);
     $('mainView').classList.toggle('hidden', menu);
@@ -830,7 +869,6 @@
   updateLocalSndBtn();
   setStatus(false); setVol(100);
   syncLocalSounds();
-  loadSoundsFromApi();
   document.addEventListener('pointerdown', () => initAudio(true), { once: false });
   document.addEventListener('keydown', () => initAudio(true), { once: false });
   const initial = new URLSearchParams(location.search).get('room') || localStorage.getItem('sb_room');

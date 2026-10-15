@@ -1,0 +1,23 @@
+﻿{
+  "id": "/controller",
+  "name": "Live Soundboard",
+  "short_name": "Soundboard",
+  "description": "ปุ่มเสียงสำหรับไลฟ์ พร้อมหมวดหมู่เสียงและคีย์ลัด",
+  "lang": "th",
+  "dir": "ltr",
+  "start_url": "/controller?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f1f9",
+  "theme_color": "#f4f1f9",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/icons/app-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/app-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/app-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "เมนู", "url": "/controller?source=pwa#menu", "icons": [{ "src": "/icons/app-192.png", "sizes": "192x192", "type": "image/png" }] }
+  ]
+}
+

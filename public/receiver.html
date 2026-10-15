@@ -6,6 +6,7 @@
   <title>Soundboard Receiver</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/load-queue.js?v=1"></script>
   <script src="/js/sounds.js?v=2"></script>
   <style>
     html, body { background: #0b0b14; margin: 0; }
@@ -71,32 +72,38 @@
   const analyser = ctx.createAnalyser(); analyser.fftSize = 128; analyser.smoothingTimeConstant = 0.75;
   master.connect(analyser); analyser.connect(ctx.destination);
 
-  const meta = {}, buffers = {}, failed = {}, loading = new Set(), active = new Set();
+  const meta = {}, buffers = {}, failed = {}, loading = new Map(), active = new Set();
+  const queueAudio = createLoadQueue(2);
   let total = 0;
   const info = () => {
     const bad = Object.keys(failed).filter((k) => !buffers[k]);
     $('loadInfo').textContent = `Loaded ${Object.keys(buffers).length}/${total} sounds` + (bad.length ? ` (failed: ${bad.join(', ')})` : '');
   };
 
-  async function load(s) {
+  function load(s, priority = false) {
     meta[s.id] = s;
-    if (buffers[s.id] || loading.has(s.id)) return;
-    loading.add(s.id);
-    try {
-      const url = s.url || s.file;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(res.status);
-      const ab = await res.arrayBuffer();
-      buffers[s.id] = await new Promise((resolve, reject) => ctx.decodeAudioData(ab, resolve, reject));
-    } catch (e) { console.warn('Failed to load', s.url || s.file, e); failed[s.id] = String(e && e.message || e); }
-    loading.delete(s.id); info();
+    if (buffers[s.id]) return Promise.resolve();
+    if (loading.has(s.id)) { if (priority) queueAudio.prioritize(s.id); return loading.get(s.id); }
+    const task = queueAudio(async () => {
+      try {
+        if (!meta[s.id]) return;
+        const response = await fetch(s.url || s.file);
+        if (!response.ok) throw new Error(response.status);
+        const buffer = await ctx.decodeAudioData(await response.arrayBuffer());
+        if (meta[s.id]) { buffers[s.id] = buffer; delete failed[s.id]; }
+      } catch (error) { console.warn('Failed to load', s.url || s.file, error); failed[s.id] = String(error.message || error); }
+      finally { loading.delete(s.id); info(); }
+    }, s.id);
+    loading.set(s.id, task);
+    return task;
   }
+
   function syncSounds(custom) {
     const all = [...SOUNDS, ...(custom || [])];
     total = all.length;
     const ids = new Set(all.map((s) => s.id));
-    Object.keys(buffers).forEach((id) => { if (!ids.has(id)) { delete buffers[id]; delete meta[id]; } });
-    all.forEach(load); info();
+    Object.keys(meta).forEach((id) => { if (!ids.has(id)) { delete buffers[id]; delete meta[id]; delete failed[id]; } });
+    all.forEach(sound => load(sound)); info();
   }
   syncSounds([]); // built-ins start loading immediately
 
@@ -118,8 +125,9 @@
   function toast(text) {
     const t = $('toast'); t.textContent = text; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
   }
-  let currentSource = null;
+  let currentSource = null, playbackVersion = 0;
   function stopAll() {
+    playbackVersion++;
     if (currentSource) {
       try { currentSource.stop(0); currentSource.disconnect(); } catch (_) {}
       currentSource = null;
@@ -129,10 +137,16 @@
     toast('⏹  Stopped');
   }
 
-  function play(id) {
-    const buf = buffers[id]; if (!buf) return;
-    if (ctx.state !== 'running') ctx.resume();
+  async function play(id) {
     stopAll();
+    const version = playbackVersion;
+    if (ctx.state !== 'running') ctx.resume();
+    if (!buffers[id]) {
+      if (!meta[id]) return;
+      await load(meta[id], true);
+      if (version !== playbackVersion) return;
+    }
+    const buf = buffers[id]; if (!buf) return;
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(master);
@@ -158,7 +172,6 @@
       }
     } catch (_) {}
   }
-  loadSoundsFromApi();
   function setVolume(v) {
     master.gain.setTargetAtTime(v / 100, ctx.currentTime, 0.01);
     $('volInfo').textContent = `Volume ${Math.round(v)}%`;
@@ -169,8 +182,8 @@
   const BARS = 32, grad = g.createLinearGradient(0, 0, cv.width, 0);
   grad.addColorStop(0, '#6366f1'); grad.addColorStop(.5, '#a855f7'); grad.addColorStop(1, '#ec4899');
   function draw() {
-    requestAnimationFrame(draw);
     if (document.body.classList.contains('ui-hidden')) return;
+    requestAnimationFrame(draw);
     analyser.getByteFrequencyData(data);
     g.clearRect(0, 0, cv.width, cv.height);
     const bw = cv.width / BARS;
